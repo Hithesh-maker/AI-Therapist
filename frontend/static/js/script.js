@@ -15,6 +15,33 @@ const voiceStatus = document.getElementById('voiceStatus');
 const BACKEND_URL = "https://ai-therapist-hkt5.onrender.com";
 
 
+async function requestJson(url, options = {}) {
+    const response = await fetch(url, {
+        mode: 'cors',
+        ...options,
+        headers: {
+            'Accept': 'application/json',
+            ...(options.headers || {})
+        }
+    });
+
+    const contentType = response.headers.get('content-type') || '';
+    const payload = contentType.includes('application/json')
+        ? await response.json()
+        : await response.text();
+
+    if (!response.ok) {
+        throw new Error(
+            typeof payload === 'string'
+                ? payload
+                : payload.error || `Request failed with status ${response.status}`
+        );
+    }
+
+    return payload;
+}
+
+
 let mediaRecorder;
 let audioChunks = [];
 
@@ -95,7 +122,7 @@ function captureAndSend() {
 
 
 
-    fetch(`${BACKEND_URL}/predict`, {
+    requestJson(`${BACKEND_URL}/predict`, {
 
         method: 'POST',
 
@@ -108,9 +135,6 @@ function captureAndSend() {
         })
 
     })
-
-
-    .then(res => res.json())
 
 
     .then(data => {
@@ -230,16 +254,13 @@ function sendVoiceToBackend(audioBlob) {
 
 
 
-    fetch(`${BACKEND_URL}/predict_voice`, {
+    requestJson(`${BACKEND_URL}/predict_voice`, {
 
         method:'POST',
 
         body:formData
 
     })
-
-
-    .then(res => res.json())
 
 
     .then(data => {
