@@ -101,265 +101,108 @@ def home():
 # ================= FACE API =================
 
 
-@app.route(
-    "/predict",
-    methods=["POST"]
-)
-
+@app.route("/predict", methods=["POST"])
 def predict():
-
-
     try:
-
-        print("📸 Face request received")
-
+        print("========== NEW REQUEST ==========")
 
         data = request.get_json()
 
+        if not data:
+            print("No JSON")
+            return jsonify({"error": "No JSON"}), 400
 
-        if not data or "image" not in data:
+        print("JSON received")
 
-            return jsonify({
+        image = data.get("image")
 
-                "error":"No image received"
-
-            }),400
-
-
-
-        image=data["image"]
-
-
+        if not image:
+            print("No image")
+            return jsonify({"error": "No image"}), 400
 
         if "," in image:
+            image = image.split(",")[1]
 
-            image=image.split(",")[1]
+        print("Decoding base64...")
 
+        img_bytes = base64.b64decode(image)
 
+        print("Converting numpy...")
 
-        img_bytes = base64.b64decode(
-            image
-        )
+        np_img = np.frombuffer(img_bytes, np.uint8)
 
+        print("Decoding image...")
 
-        np_img=np.frombuffer(
-
-            img_bytes,
-
-            np.uint8
-
-        )
-
-
-        img=cv2.imdecode(
-
-            np_img,
-
-            cv2.IMREAD_COLOR
-
-        )
-
-
+        img = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
 
         if img is None:
+            print("Image decode failed")
+            return jsonify({"error": "Invalid image"}), 400
 
-            return jsonify({
+        print("Resizing...")
 
-                "error":"Invalid image"
+        img = cv2.resize(img, (320, 240))
 
-            }),400
+        print("Converting RGB...")
 
+        rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
+        print("Loading MediaPipe...")
 
-        # reduce size
+        mesh = get_face_mesh()
 
-        img=cv2.resize(
+        print("Running FaceMesh...")
 
-            img,
+        results = mesh.process(rgb)
 
-            (320,240)
-
-        )
-
-
-
-        rgb=cv2.cvtColor(
-
-            img,
-
-            cv2.COLOR_BGR2RGB
-
-        )
-
-
-
-        mesh=get_face_mesh()
-
-
-
-        results=mesh.process(
-            rgb
-        )
-
-
+        print("FaceMesh finished")
 
         if not results.multi_face_landmarks:
-
-
-            print("⚠ No face")
-
-
+            print("No face detected")
             return jsonify({
-
-                "emotion":"No Face",
-
-                "score":0
-
+                "emotion": "No Face",
+                "score": 0
             })
 
+        print("Extracting landmarks...")
 
-
-        landmarks=[]
-
+        landmarks = []
 
         for point in results.multi_face_landmarks[0].landmark:
+            landmarks.extend([point.x, point.y, point.z])
 
+        print("Creating feature vector...")
 
-            landmarks.extend([
+        features = np.array(landmarks).reshape(1, -1)
 
-                point.x,
+        print("Running model.predict()...")
 
-                point.y,
+        prediction = model.predict(features)[0]
 
-                point.z
+        confidence = 0
 
-            ])
-
-
-
-        features=np.array(
-
-            landmarks
-
-        ).reshape(
-
-            1,-1
-
-        )
-
-
-
-        if features.shape[1] != model.n_features_in_:
-
-
-            print(
-
-                "Feature mismatch",
-
-                features.shape[1],
-
-                model.n_features_in_
-
+        if hasattr(model, "predict_proba"):
+            confidence = int(
+                max(model.predict_proba(features)[0]) * 100
             )
 
-
-            return jsonify({
-
-                "emotion":"Invalid Features",
-
-                "score":0
-
-            })
-
-
-
-        prediction=model.predict(
-
-            features
-
-        )[0]
-
-
-
-        confidence=0
-
-
-
-        if hasattr(
-
-            model,
-
-            "predict_proba"
-
-        ):
-
-
-            confidence=int(
-
-                max(
-
-                    model.predict_proba(features)[0]
-
-                )*100
-
-            )
-
-
-
-        print(
-
-            "🎯",
-
-            prediction,
-
-            confidence
-
-        )
-
-
-
-        # clear memory
+        print("Prediction complete")
 
         del img
-
         del rgb
-
         del results
-
         gc.collect()
 
-
-
         return jsonify({
-
-            "emotion":str(prediction),
-
-            "score":confidence
-
+            "emotion": str(prediction),
+            "score": confidence
         })
 
-
-
     except Exception as e:
+        print("ERROR:", str(e))
+        return jsonify({"error": str(e)}), 500
 
-
-        print(
-
-            "❌ FACE ERROR",
-
-            e
-
-        )
-
-
-        return jsonify({
-
-            "error":str(e)
-
-        }),500
-
-
-
+    
 
 # ================= VOICE =================
 
