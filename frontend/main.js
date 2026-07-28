@@ -15,22 +15,25 @@ const voiceEmojiDisplay = document.getElementById('voiceEmojiDisplay');
 const voiceStatus = document.getElementById('voiceStatus');
 const faceButton = document.getElementById('faceButton');
 const voiceButton = document.getElementById('voiceButton');
+const enableCameraButton = document.getElementById('enableCameraButton');
 
 const webcam = new WebcamService(video);
 const voice = new VoiceService();
 
 async function init() {
   try {
+    await api.health();
+  } catch (error) {
+    setStatus(output, `Backend unavailable: ${error.message}`, false);
+  }
+}
+
+async function enableCamera() {
+  try {
     await webcam.start();
     setStatus(output, 'Webcam ready. Click Analyze Face to begin.', false);
   } catch (error) {
     setStatus(output, `Webcam unavailable: ${error.message}`, false);
-  }
-
-  try {
-    await api.health();
-  } catch (error) {
-    setStatus(output, `Backend unavailable: ${error.message}`, false);
   }
 }
 
@@ -86,5 +89,6 @@ async function analyzeVoice() {
 
 faceButton?.addEventListener('click', analyzeFace);
 voiceButton?.addEventListener('click', analyzeVoice);
+enableCameraButton?.addEventListener('click', enableCamera);
 
 window.addEventListener('DOMContentLoaded', init);
