@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Therapist</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      background-color: #121212;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 2em;
+      margin-bottom: 10px;
+    }
+
+    video {
+      width: 320px;
+      height: 240px;
+      border: 3px solid #00bcd4;
+      border-radius: 10px;
+      margin-top: 20px;
+      box-shadow: 0 0 10px #00bcd4;
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 12px 24px;
+      font-size: 16px;
+      background-color: #00bcd4;
+      border: none;
+      color: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #0097a7;
+    }
+
+    #output {
+      margin-top: 25px;
+      padding: 15px;
+      font-size: 18px;
+      background-color: #1e1e1e;
+      border-left: 4px solid #00bcd4;
+      border-radius: 8px;
+      width: 80%;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .typing {
+      font-style: italic;
+      opacity: 0.8;
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 0.2; }
+      50% { opacity: 1; }
+    }
+
+    .emotion-panel {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #333;
+      border-radius: 8px;
+      background-color: #1a1a1a;
+      width: 320px;
+      margin: 20px auto;
+    }
+
+    .emotion-title {
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+
+    .emoji {
+      font-size: 2rem;
+    }
+
+    .dual-panel {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧠 AI Therapist</h1>
+
+  <!-- Webcam feed -->
+  <video id="webcam" autoplay playsinline></video>
+
+  <!-- Buttons -->
+  <div>
+    <button onclick="captureAndSend()">Analyze Face Emotion</button>
+    <button id="recordBtn">🎤 Record Voice Emotion</button>
+  </div>
+
+  <!-- Typing indicator -->
+  <div id="output" class="typing">Loading webcam...</div>
+
+  <!-- Emotion Results Panel -->
+  <div class="dual-panel">
+    <div class="emotion-panel" id="faceEmotionPanel" style="display: none;">
+      <div class="emotion-title">Face Emotion:</div>
+      <div id="faceEmotionText">😊 Happy</div>
+      <div class="emoji" id="faceEmojiDisplay">😊</div>
+    </div>
+
+    <div class="emotion-panel" id="voiceEmotionPanel" style="display: none;">
+      <div class="emotion-title">Voice Emotion:</div>
+      <div id="voiceEmotionText">😊 Happy</div>
+      <div class="emoji" id="voiceEmojiDisplay">😊</div>
+    </div>
+  </div>
+
+  <!-- Voice Recording Status -->
+  <div id="voiceStatus" class="typing">Voice Status: Idle</div>
+
+  <!-- External JS -->
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
