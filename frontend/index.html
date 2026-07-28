@@ -101,8 +101,8 @@
 
   <!-- Buttons -->
   <div>
-    <button onclick="captureAndSend()">Analyze Face Emotion</button>
-    <button id="recordBtn">🎤 Record Voice Emotion</button>
+    <button id="faceButton" type="button">Analyze Face Emotion</button>
+    <button id="voiceButton" type="button">🎤 Record Voice Emotion</button>
   </div>
 
   <!-- Typing indicator -->
@@ -127,6 +127,6 @@
   <div id="voiceStatus" class="typing">Voice Status: Idle</div>
 
   <!-- External JS -->
-  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='../main.js') }}"></script>
 </body>
 </html>
