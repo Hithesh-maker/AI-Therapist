@@ -7,32 +7,34 @@ import cv2
 import mediapipe as mp
 import os
 import joblib
+import gc
 
 
-# ================= LOAD MODEL =================
+# ================= PATH =================
 
 BASE_DIR = os.path.dirname(__file__)
 
-model_path = os.path.join(
+MODEL_PATH = os.path.join(
     BASE_DIR,
     "models",
     "face_model.pkl"
 )
 
 
-if not os.path.exists(model_path):
+# ================= LOAD ML MODEL =================
+
+if not os.path.exists(MODEL_PATH):
     raise FileNotFoundError(
-        "face_model.pkl missing"
+        "face_model.pkl not found"
     )
 
 
-model = joblib.load(model_path)
+model = joblib.load(MODEL_PATH)
 
 print("✅ Face model loaded")
 
 
 # ================= FLASK =================
-
 
 app = Flask(
     __name__,
@@ -40,24 +42,44 @@ app = Flask(
     template_folder="../frontend"
 )
 
-
 CORS(app)
 
 
+# ================= MEDIAPIPE LAZY LOAD =================
 
-# ================= MEDIAPIPE =================
-
-
-mp_face = mp.solutions.face_mesh
+face_mesh = None
 
 
-face_mesh = mp_face.FaceMesh(
-    static_image_mode=True,
-    max_num_faces=1,
-    refine_landmarks=False,
-    min_detection_confidence=0.3,
-    min_tracking_confidence=0.3
-)
+def get_face_mesh():
+
+    global face_mesh
+
+    if face_mesh is None:
+
+        print("Loading MediaPipe...")
+
+        mp_face = mp.solutions.face_mesh
+
+
+        face_mesh = mp_face.FaceMesh(
+
+            static_image_mode=False,
+
+            max_num_faces=1,
+
+            refine_landmarks=False,
+
+            min_detection_confidence=0.3,
+
+            min_tracking_confidence=0.3
+
+        )
+
+
+        print("✅ MediaPipe loaded")
+
+
+    return face_mesh
 
 
 
@@ -73,14 +95,16 @@ def home():
 
 
 
-# ================= FACE PREDICTION =================
+# ================= FACE API =================
 
 
 @app.route(
     "/predict",
     methods=["POST"]
 )
+
 def predict():
+
 
     try:
 
@@ -93,33 +117,43 @@ def predict():
         if not data or "image" not in data:
 
             return jsonify({
-                "error":"No image"
+
+                "error":"No image received"
+
             }),400
 
 
 
-        image = data["image"]
+        image=data["image"]
 
 
-        # remove base64 header
 
-        encoded = image.split(",")[1]
+        if "," in image:
+
+            image=image.split(",")[1]
+
 
 
         img_bytes = base64.b64decode(
-            encoded
+            image
         )
 
 
-        np_img = np.frombuffer(
+        np_img=np.frombuffer(
+
             img_bytes,
+
             np.uint8
+
         )
 
 
-        img = cv2.imdecode(
+        img=cv2.imdecode(
+
             np_img,
+
             cv2.IMREAD_COLOR
+
         )
 
 
@@ -127,28 +161,40 @@ def predict():
         if img is None:
 
             return jsonify({
+
                 "error":"Invalid image"
+
             }),400
 
 
 
-        # IMPORTANT FOR RENDER RAM
+        # reduce size
 
-        img = cv2.resize(
+        img=cv2.resize(
+
             img,
+
             (320,240)
+
         )
 
 
 
-        rgb = cv2.cvtColor(
+        rgb=cv2.cvtColor(
+
             img,
+
             cv2.COLOR_BGR2RGB
+
         )
 
 
 
-        results = face_mesh.process(
+        mesh=get_face_mesh()
+
+
+
+        results=mesh.process(
             rgb
         )
 
@@ -157,18 +203,14 @@ def predict():
         if not results.multi_face_landmarks:
 
 
-            print(
-                "No face found"
-            )
+            print("⚠ No face")
 
 
             return jsonify({
 
-                "emotion":
-                "No Face",
+                "emotion":"No Face",
 
-                "score":
-                0
+                "score":0
 
             })
 
@@ -179,79 +221,117 @@ def predict():
 
         for point in results.multi_face_landmarks[0].landmark:
 
+
             landmarks.extend([
+
                 point.x,
+
                 point.y,
+
                 point.z
+
             ])
 
 
 
         features=np.array(
+
             landmarks
+
         ).reshape(
+
             1,-1
+
         )
 
 
 
-        expected = model.n_features_in_
-
-
-        if features.shape[1] != expected:
+        if features.shape[1] != model.n_features_in_:
 
 
             print(
+
                 "Feature mismatch",
+
                 features.shape[1],
-                expected
+
+                model.n_features_in_
+
             )
 
 
             return jsonify({
 
-                "emotion":
-                "Invalid Features",
+                "emotion":"Invalid Features",
 
-                "score":
-                0
+                "score":0
 
             })
 
 
 
-        prediction = model.predict(
+        prediction=model.predict(
+
             features
+
         )[0]
 
 
-        score = 0
+
+        confidence=0
 
 
-        if hasattr(model,"predict_proba"):
 
-            score = int(
+        if hasattr(
+
+            model,
+
+            "predict_proba"
+
+        ):
+
+
+            confidence=int(
+
                 max(
+
                     model.predict_proba(features)[0]
+
                 )*100
+
             )
 
 
 
         print(
-            "Prediction:",
+
+            "🎯",
+
             prediction,
-            score
+
+            confidence
+
         )
+
+
+
+        # clear memory
+
+        del img
+
+        del rgb
+
+        del results
+
+        gc.collect()
+
 
 
         return jsonify({
 
-            "emotion":
-            str(prediction),
+            "emotion":str(prediction),
 
-            "score":
-            score
+            "score":confidence
 
         })
 
@@ -261,18 +341,19 @@ def predict():
 
 
         print(
-            "FACE ERROR:",
+
+            "❌ FACE ERROR",
+
             e
+
         )
 
 
         return jsonify({
 
-            "error":
-            str(e)
+            "error":str(e)
 
         }),500
-
 
 
 
@@ -281,11 +362,14 @@ def predict():
 
 
 @app.route(
+
     "/predict_voice",
+
     methods=["POST"]
+
 )
 
-def voice():
+def predict_voice():
 
 
     try:
@@ -301,8 +385,7 @@ def voice():
 
             return jsonify({
 
-                "error":
-                "No audio"
+                "error":"No audio"
 
             }),400
 
@@ -310,13 +393,12 @@ def voice():
 
         return jsonify({
 
-            "emotion":
-            "neutral",
+            "emotion":"neutral",
 
-            "confidence":
-            90
+            "confidence":90
 
         })
+
 
 
     except Exception as e:
@@ -324,22 +406,23 @@ def voice():
 
         return jsonify({
 
-            "error":
-            str(e)
+            "error":str(e)
 
         }),500
 
 
 
 
-
-# ================= START =================
+# ================= RUN =================
 
 
 if __name__=="__main__":
 
 
     app.run(
+
         host="0.0.0.0",
+
         port=5000
+
     )
