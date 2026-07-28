@@ -21,10 +21,14 @@ const voice = new VoiceService();
 
 async function init() {
   try {
-    setStatus(output, 'Connecting to backend...', true);
-    await api.health();
     await webcam.start();
     setStatus(output, 'Webcam ready. Click Analyze Face to begin.', false);
+  } catch (error) {
+    setStatus(output, `Webcam unavailable: ${error.message}`, false);
+  }
+
+  try {
+    await api.health();
   } catch (error) {
     setStatus(output, `Backend unavailable: ${error.message}`, false);
   }
