@@ -3,7 +3,6 @@ services:
     name: offline-ai-therapist
     env: python
     plan: free
-    runtime: python-3.11
     buildCommand: |
       python -m pip install --upgrade pip setuptools wheel
       pip install -r requirements.txt
