@@ -6,9 +6,14 @@ class WebcamService {
 
   async start() {
     if (this.stream) return this.stream;
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('This browser does not support webcam access.');
+    }
+
     this.stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     this.videoElement.srcObject = this.stream;
-    this.videoElement.play();
+    await this.videoElement.play();
     return this.stream;
   }
 
