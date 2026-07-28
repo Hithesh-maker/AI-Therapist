@@ -41,8 +41,9 @@ app = Flask(
     static_folder="../frontend/static",
     template_folder="../frontend"
 )
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 
 # ================= MEDIAPIPE LAZY LOAD =================
@@ -58,28 +59,30 @@ def get_face_mesh():
 
         print("Loading MediaPipe...")
 
-        mp_face = mp.solutions.face_mesh
+        try:
+            mp_face = mp.solutions.face_mesh
 
+            face_mesh = mp_face.FaceMesh(
+                static_image_mode=True,
+                max_num_faces=1,
+                refine_landmarks=False,
+                min_detection_confidence=0.5,
+            )
 
-        face_mesh = mp_face.FaceMesh(
+            print("✅ MediaPipe loaded")
 
-            static_image_mode=False,
-
-            max_num_faces=1,
-
-            refine_landmarks=False,
-
-            min_detection_confidence=0.3,
-
-            min_tracking_confidence=0.3
-
-        )
-
-
-        print("✅ MediaPipe loaded")
-
+        except Exception as exc:
+            print("⚠️ MediaPipe init failed:", exc)
+            face_mesh = False
 
     return face_mesh
+
+
+# Warm up MediaPipe once at startup so the first analyze-face request is faster.
+try:
+    get_face_mesh()
+except Exception:
+    pass
 
 
 
